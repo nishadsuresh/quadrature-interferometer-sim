@@ -51,3 +51,32 @@ def recover_displacement(
     phase = np.unwrap(np.arctan2(Q_ac, I_ac))
     displacement = phase * wavelength_m / (4 * np.pi)
     return displacement
+
+
+def detect_vibration_freq(x_recovered: np.ndarray, t: np.ndarray) -> tuple[float, float]:
+    """Removes the slow linear trend (ramp) from recovered displacement, then
+    FFTs the residual to find the dominant vibration frequency. Uses
+    parabolic interpolation around the FFT peak for sub-bin frequency
+    accuracy (plain argmax is only accurate to the bin width).
+
+    Returns (frequency_hz, magnitude_at_peak)."""
+    # remove linear trend (the ramp) -- least-squares line fit, subtract
+    design = np.column_stack([t, np.ones_like(t)])
+    coeffs, *_ = np.linalg.lstsq(design, x_recovered, rcond=None)
+    residual = x_recovered - design @ coeffs
+
+    fs = 1 / (t[1] - t[0])
+    windowed = residual * np.hanning(len(residual))
+    spectrum = np.abs(np.fft.rfft(windowed))
+    freqs = np.fft.rfftfreq(len(windowed), d=1 / fs)
+
+    peak_bin = int(np.argmax(spectrum))
+    if peak_bin == 0 or peak_bin == len(spectrum) - 1:
+        return float(freqs[peak_bin]), float(spectrum[peak_bin])
+
+    y0, y1, y2 = spectrum[peak_bin - 1], spectrum[peak_bin], spectrum[peak_bin + 1]
+    denom = y0 - 2 * y1 + y2
+    delta = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+    bin_width = freqs[1] - freqs[0]
+    freq = freqs[peak_bin] + delta * bin_width
+    return float(freq), float(spectrum[peak_bin])
