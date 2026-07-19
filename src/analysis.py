@@ -3,7 +3,8 @@ Analysis pipeline: raw quadrature (I, Q) detector signals -> recovered
 mirror displacement.
 
 Steps:
-1. Remove DC bias (estimate I0 as the mean of each channel).
+1. Remove DC bias via a low-pass filter (NOT a whole-record mean -- see the
+   docstring on estimate_dc_lowpass for why that matters).
 2. Remove the 60Hz mains component via a least-squares sinusoid fit at
    exactly 60Hz and subtract it -- narrowband, so it does NOT touch the
    real slow displacement signal the way a generic polynomial detrend would.
@@ -33,6 +34,31 @@ def remove_mains(signal: np.ndarray, t: np.ndarray, mains_freq_hz: float = 60.0)
     return signal - mains_only
 
 
+def fit_circle_center(I: np.ndarray, Q: np.ndarray) -> tuple[float, float]:
+    """Algebraic circle fit (Kasa method): (I,Q) trace a circle of radius V
+    centered at (I0,I0) since I-I0=V*cos(phi), Q-I0=V*sin(phi). Solving for
+    that center directly recovers I0 geometrically -- independent of
+    oscillation amplitude, frequency, or whether a ramp sweeps through many
+    fringes. This replaces an earlier low-pass-filter-based DC estimate that
+    turned out to itself depend on the ratio between vibration frequency and
+    filter cutoff (leaking oscillation through as spurious "DC" for
+    small-phase-excursion signals) -- caught by testing the exact no-ramp
+    case a code review flagged as broken under the original whole-record-mean
+    approach, then re-caught when the first attempted fix didn't actually
+    resolve it either. Verify before trusting: this method only needs the
+    (I,Q) trajectory to trace out *some* meaningful arc, not many full cycles.
+
+    (I-a)^2 + (Q-b)^2 = r^2  =>  I^2+Q^2 = 2a*I + 2b*Q + (r^2-a^2-b^2)
+    -- linear in [2a, 2b, (r^2-a^2-b^2)], solved via least squares.
+    """
+    design = np.column_stack([I, Q, np.ones_like(I)])
+    target = I ** 2 + Q ** 2
+    coeffs, *_ = np.linalg.lstsq(design, target, rcond=None)
+    a = coeffs[0] / 2
+    b = coeffs[1] / 2
+    return float(a), float(b)
+
+
 def recover_displacement(
     I: np.ndarray,
     Q: np.ndarray,
@@ -45,8 +71,9 @@ def recover_displacement(
     I_proc = remove_mains(I, t, mains_freq_hz) if remove_mains_flag else I.copy()
     Q_proc = remove_mains(Q, t, mains_freq_hz) if remove_mains_flag else Q.copy()
 
-    I_ac = I_proc - np.mean(I_proc)
-    Q_ac = Q_proc - np.mean(Q_proc)
+    I0, Q0 = fit_circle_center(I_proc, Q_proc)
+    I_ac = I_proc - I0
+    Q_ac = Q_proc - Q0
 
     phase = np.unwrap(np.arctan2(Q_ac, I_ac))
     displacement = phase * wavelength_m / (4 * np.pi)
