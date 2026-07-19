@@ -6,7 +6,7 @@ Simulates a Michelson interferometer with realistic detector noise, then recover
 
 ## Why this exists, and the key design decision
 
-This is the one project in the portfolio tied to real ongoing optics research, not an anonymous simulator. During planning, a naive single-photodiode approach was tested and **failed**: 54% displacement error, plus a fundamental direction ambiguity (`cos(phi)` can't distinguish `+phi` from `-phi`). Switching to **quadrature (I/Q) homodyne detection** — two detectors 90° apart — resolves this: `atan2(Q, I)` gives an unambiguous, monotonic phase estimate. That upgrade is the real instrumentation-engineering content here, not a detail.
+This is the one project in my portfolio tied to real ongoing optics research, not an anonymous simulator. While planning it, I tested a naive single-photodiode approach and it **failed**: 54% displacement error, plus a fundamental direction ambiguity (`cos(phi)` can't distinguish `+phi` from `-phi`). Switching to **quadrature (I/Q) homodyne detection** — two detectors 90° apart — resolves this: `atan2(Q, I)` gives an unambiguous, monotonic phase estimate. That upgrade is the real instrumentation-engineering content here, not a detail.
 
 ## Physics
 
@@ -48,9 +48,9 @@ python src/dashboard.py       # full visualization
 
 Full validation writeup with all equations and numbers: [`report/validation_report.md`](report/validation_report.md).
 
-## A bug caught during code review
+## A bug I caught while reviewing the code
 
-The original DC-bias estimator (whole-record mean) only worked because every test above includes a large ramp. Pure steady-state vibration sensing with no ramp — one of this project's two stated goals — gave 58%+ recovery error, silently. Fixed by geometrically fitting a circle to the (I,Q) trajectory instead (see `report/validation_report.md` for the full story, including a first fix attempt that didn't actually work). Every result above is from the corrected code.
+My original DC-bias estimator (whole-record mean) only worked because every test above includes a large ramp. Pure steady-state vibration sensing with no ramp — one of this project's two stated goals — gave 58%+ recovery error, silently. I fixed it by geometrically fitting a circle to the (I,Q) trajectory instead (see `report/validation_report.md` for the full story, including a first fix attempt that didn't actually work). Every result above is from the corrected code.
 
 ## Honest limitations
 
