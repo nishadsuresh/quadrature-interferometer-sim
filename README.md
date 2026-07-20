@@ -52,6 +52,8 @@ Full validation writeup with all equations and numbers: [`report/validation_repo
 
 My original DC-bias estimator (whole-record mean) only worked because every test above includes a large ramp. Pure steady-state vibration sensing with no ramp — one of this project's two stated goals — gave 58%+ recovery error, silently. I fixed it by geometrically fitting a circle to the (I,Q) trajectory instead (see `report/validation_report.md` for the full story, including a first fix attempt that didn't actually work). Every result above is from the corrected code.
 
+A later quality pass caught a couple of smaller loose ends from that fix: `analysis.py`'s module docstring still described the old low-pass-filter approach instead of the circle fit that actually replaced it, and `dashboard.py` re-simulated the interferometer a second time with its own hand-copied parameters instead of reusing `validate.py`'s single source of truth — a real risk of the two silently drifting apart. Both fixed; `dashboard.py` now pulls I/Q straight from one `run_validation()` call.
+
 ## Honest limitations
 
 - **Simulation only** — every number above is on simulated detector data, not a real optical bench. Framed throughout as "I validated the analysis pipeline," not "I built an interferometer."

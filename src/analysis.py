@@ -3,8 +3,10 @@ Analysis pipeline: raw quadrature (I, Q) detector signals -> recovered
 mirror displacement.
 
 Steps:
-1. Remove DC bias via a low-pass filter (NOT a whole-record mean -- see the
-   docstring on estimate_dc_lowpass for why that matters).
+1. Remove DC bias via a geometric circle fit on the raw (I,Q) trajectory
+   (NOT a whole-record mean, and not a low-pass filter either -- both were
+   tried and both broke on pure-vibration signals with no ramp; see the
+   docstring on fit_circle_center for the full story).
 2. Remove the 60Hz mains component via a least-squares sinusoid fit at
    exactly 60Hz and subtract it -- narrowband, so it does NOT touch the
    real slow displacement signal the way a generic polynomial detrend would.
@@ -80,13 +82,15 @@ def recover_displacement(
     return displacement
 
 
-def detect_vibration_freq(x_recovered: np.ndarray, t: np.ndarray) -> tuple[float, float]:
+def detect_vibration_freq(x_recovered: np.ndarray, t: np.ndarray, return_spectrum: bool = False):
     """Removes the slow linear trend (ramp) from recovered displacement, then
     FFTs the residual to find the dominant vibration frequency. Uses
     parabolic interpolation around the FFT peak for sub-bin frequency
     accuracy (plain argmax is only accurate to the bin width).
 
-    Returns (frequency_hz, magnitude_at_peak)."""
+    Returns (frequency_hz, magnitude_at_peak), or (frequency_hz, magnitude_at_peak,
+    freqs, spectrum) if return_spectrum=True -- lets a caller (e.g. dashboard.py)
+    plot the same spectrum this function computed instead of re-deriving it."""
     # remove linear trend (the ramp) -- least-squares line fit, subtract
     design = np.column_stack([t, np.ones_like(t)])
     coeffs, *_ = np.linalg.lstsq(design, x_recovered, rcond=None)
@@ -99,11 +103,14 @@ def detect_vibration_freq(x_recovered: np.ndarray, t: np.ndarray) -> tuple[float
 
     peak_bin = int(np.argmax(spectrum))
     if peak_bin == 0 or peak_bin == len(spectrum) - 1:
-        return float(freqs[peak_bin]), float(spectrum[peak_bin])
+        freq, mag = float(freqs[peak_bin]), float(spectrum[peak_bin])
+    else:
+        y0, y1, y2 = spectrum[peak_bin - 1], spectrum[peak_bin], spectrum[peak_bin + 1]
+        denom = y0 - 2 * y1 + y2
+        delta = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+        bin_width = freqs[1] - freqs[0]
+        freq, mag = float(freqs[peak_bin] + delta * bin_width), float(spectrum[peak_bin])
 
-    y0, y1, y2 = spectrum[peak_bin - 1], spectrum[peak_bin], spectrum[peak_bin + 1]
-    denom = y0 - 2 * y1 + y2
-    delta = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
-    bin_width = freqs[1] - freqs[0]
-    freq = freqs[peak_bin] + delta * bin_width
-    return float(freq), float(spectrum[peak_bin])
+    if return_spectrum:
+        return freq, mag, freqs, spectrum
+    return freq, mag
