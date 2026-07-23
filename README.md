@@ -63,3 +63,22 @@ A later quality pass caught a couple of smaller loose ends from that fix: `analy
 ## One-line summary
 
 I built and validated the full quadrature-detection analysis pipeline a real Michelson interferometer needs — recovering nanometer displacement to 0.044% error and vibration frequency to 0.002% error, robust to detector noise up to 6%, tied to my optics research.
+
+
+## References
+
+Sources used to design, validate, and cross-check this project's methodology:
+
+[1] C. Lehmann et al., "Nonlinearity correction for homodyne quadrature interferometers," arXiv:2511.04386, Nov. 2025 (Max Planck Institute for Gravitational Physics). https://arxiv.org/abs/2511.04386 -- direction-dependent ellipse-fit correction technique motivating this project's Phase 2 upgrade path.
+
+[2] G. Cooper et al., "A compact, large-range interferometer for precision measurement and inertial sensing," Class. Quantum Grav. 35, 095007 (2018). arXiv:1710.05943. https://arxiv.org/abs/1710.05943
+
+[3] O. Smetana et al., "Compact Michelson interferometers with subpicometer sensitivity," arXiv:2202.10274. https://arxiv.org/abs/2202.10274
+
+[4] S. M. Kranzhoff et al., "A vertical inertial sensor with interferometric readout," Class. Quantum Grav. 40, 015007 (2023). https://doi.org/10.1088/1361-6382/aca580
+
+[5] R. Halir and J. Flusser, "Numerically stable direct least squares fitting of ellipses," WSCG'98 Conference Proceedings, 1998. -- the general ellipse-fitting family relevant to `fit_circle_center` and the planned Phase 2 ellipse correction.
+
+[6] I. Kasa, "A circle fitting procedure and its error analysis," IEEE Trans. Instrumentation and Measurement, vol. 25, no. 1, 1976, pp. 8-14. https://doi.org/10.1109/TIM.1976.6312298 -- the algebraic circle-fit method `src/analysis.py` implements for DC-bias recovery.
+
+[7] P. Hariharan, Basics of Interferometry, 2nd ed., Academic Press, 2007. -- general reference for Michelson interferometer theory and fringe formation underlying `src/physics.py`.
